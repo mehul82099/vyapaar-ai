@@ -1,0 +1,66 @@
+{
+  "name": "Vyapaar-AI | Telegram Negotiator",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"],
+        "additionalFields": {}
+      },
+      "id": "node-tg-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram Bot Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ---- Vyapaar-AI: n8n Negotiation Logic ----\nconst msg = $input.item.json.message;\nconst chatId = String(msg.chat.id);\nconst text = msg.text || '';\n\n// Product config - change these per product\nconst MRP = 1500;\nconst MIN_PRICE = 1100;\n\n// Extract price from message\nconst priceMatch = text.match(/\\d+/);\nconst customerOffer = priceMatch ? parseInt(priceMatch[0]) : null;\n\n// Retrieve session turn count from static data\nconst staticData = $getWorkflowStaticData('node');\nconst sessionKey = `turn_${chatId}`;\nlet turnCount = staticData[sessionKey] || 1;\n\n// ---- Negotiation Rules ----\nlet status, reply, counterOffer;\n\nif (!customerOffer) {\n  // No price in message - check intent keywords\n  const lower = text.toLowerCase();\n  const agreeWords = ['done', 'theek hai', 'pakka', 'confirm', 'bhej do', 'le lunga'];\n  const isAgree = agreeWords.some(w => lower.includes(w));\n\n  if (isAgree) {\n    status = 'SOLD';\n    reply = `Deal pakka sir! Payment link bhej raha hun.`;\n    delete staticData[sessionKey];\n  } else {\n    status = 'NEGOTIATING';\n    reply = `Bhaiya price batao, deal karte hain. Yeh product Rs.${MRP} ka hai.`;\n  }\n} else if (customerOffer >= MRP) {\n  status = 'SOLD';\n  reply = `Done sir! Rs.${MRP} mein pakka. Payment link abhi bhej raha hun.`;\n  delete staticData[sessionKey];\n} else if (customerOffer >= MIN_PRICE && turnCount >= 2) {\n  status = 'SOLD';\n  reply = `Chaliye theek hai! Rs.${customerOffer} mein final karte hain.`;\n  delete staticData[sessionKey];\n} else if (customerOffer < MIN_PRICE) {\n  if (turnCount >= 3) {\n    status = 'WALKAWAY';\n    reply = `Bhaiya, Rs.${MIN_PRICE} se ek paisa bhi kam nahi hoga. Last price yahi hai.`;\n    delete staticData[sessionKey];\n  } else {\n    const discount = (MRP - MIN_PRICE) * (0.3 * turnCount);\n    counterOffer = Math.round(MRP - discount);\n    status = 'NEGOTIATING';\n    reply = `Arey sir, Rs.${customerOffer} mein cost bhi nahi niklega! Chalo Rs.${counterOffer} final kar deta hun.`;\n    staticData[sessionKey] = turnCount + 1;\n  }\n} else {\n  counterOffer = Math.round((customerOffer + MRP) / 2);\n  status = 'NEGOTIATING';\n  reply = `Sir Rs.${customerOffer} mein thoda tough hai. Rs.${counterOffer} kar dijiye!`;\n  staticData[sessionKey] = turnCount + 1;\n}\n\nreturn { json: { chatId, reply, status, counterOffer } };"
+      },
+      "id": "node-negotiator-logic",
+      "name": "Negotiator Logic",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.reply }}",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "node-tg-send",
+      "name": "Send Reply to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram Bot Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [[{ "node": "Negotiator Logic", "type": "main", "index": 0 }]]
+    },
+    "Negotiator Logic": {
+      "main": [[{ "node": "Send Reply to Telegram", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
