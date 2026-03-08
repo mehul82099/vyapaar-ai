@@ -1,0 +1,31 @@
+{
+  "name": "vyapaar-ai",
+  "version": "1.0.0",
+  "description": "AI-powered Indian bargaining & negotiation automation system with n8n workflows, Telegram bot integration, and Node.js core engine.",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "node -e \"const {handleIndianBargain} = require('./src/controllers/negotiator'); console.log(handleIndianBargain(1500,1100,900,1));\""
+  },
+  "keywords": [
+    "vyapaar-ai",
+    "negotiation",
+    "indian-bargaining",
+    "n8n",
+    "telegram-bot",
+    "automation",
+    "nodejs"
+  ],
+  "author": "mehul82099",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
